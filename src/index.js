@@ -50,6 +50,16 @@ app.use(cors({
   credentials: true,
 }));
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'QR Backend API is running', 
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
