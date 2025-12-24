@@ -1,0 +1,100 @@
+const path = require('path');
+
+// Try multiple .env locations for different deployment scenarios
+const envPaths = [
+  path.join(__dirname, '..', '.env'),
+  path.join(__dirname, '.env'),
+  path.join(process.cwd(), '.env'),
+  '.env'
+];
+
+for (const envPath of envPaths) {
+  require('dotenv').config({ path: envPath });
+}
+
+const express = require('express');
+const cors = require('cors');
+
+// Debug: Check if env vars are loaded
+console.log('[ENV] NODE_ENV:', process.env.NODE_ENV || 'development');
+console.log('[ENV] JWT_SECRET loaded:', !!process.env.JWT_SECRET);
+
+// Set default JWT_SECRET if not provided
+if (!process.env.JWT_SECRET) {
+  console.log('⚠️  JWT_SECRET not set, using default');
+  process.env.JWT_SECRET = 'your-super-secret-jwt-key-minimum-32-characters-long!';
+}
+
+const firebaseService = require('./services/firebase.service');
+const authRoutes = require('./routes/auth.routes');
+const vendorRoutes = require('./routes/vendor.routes');
+const customerRoutes = require('./routes/customer.routes');
+const offerRoutes = require('./routes/offer.routes');
+const redemptionRoutes = require('./routes/redemption.routes');
+const broadcastRoutes = require('./routes/broadcast.routes');
+const webhookRoutes = require('./routes/webhook.routes');
+
+const app = express();
+
+// Middleware
+app.use(express.json());
+app.use(cors({
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3001',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'https://xnex.io',
+    'http://xnex.io',
+    '*', // Allow all during testing
+  ],
+  credentials: true,
+}));
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Admin: Get database stats
+app.get('/api/admin/db-stats', (req, res) => {
+  const stats = firebaseService.getDataStats();
+  res.json({ success: true, data: stats });
+});
+
+// Admin: Clear all data (DANGEROUS - development only)
+app.post('/api/admin/clear-all-data', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ success: false, message: 'Not allowed in production' });
+  }
+  await firebaseService.clearAllData();
+  res.json({ success: true, message: 'All data cleared' });
+});
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/vendor', vendorRoutes);
+app.use('/api/customer', customerRoutes);
+app.use('/api/offer', offerRoutes);
+app.use('/api/redemption', redemptionRoutes);
+app.use('/api/broadcast', broadcastRoutes);
+app.use('/api/webhook', webhookRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('[Error]', err.message);
+  const status = err.status || 500;
+  res.status(status).json({
+    success: false,
+    message: err.message || 'Internal server error',
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
+});

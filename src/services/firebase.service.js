@@ -1,0 +1,211 @@
+const admin = require('firebase-admin');
+const path = require('path');
+const fs = require('fs');
+
+class FirebaseService {
+  constructor() {
+    this.db = null;
+    this.auth = null;
+    this.mockDatabase = new Map();
+    this.useMockDatabase = false;
+    this.initializeFirebase();
+  }
+
+  initializeFirebase() {
+    // Try to load from environment variable first (for Hostinger deployment)
+    let serviceAccount = null;
+    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    
+    if (serviceAccountJson && serviceAccountJson !== '{}' && serviceAccountJson.trim() !== '') {
+      try {
+        serviceAccount = JSON.parse(serviceAccountJson);
+        console.log('[FirebaseService] 📦 Loaded credentials from ENV');
+      } catch (e) {
+        console.log('[FirebaseService] ⚠️  Failed to parse ENV:', e.message);
+      }
+    }
+    
+    // Fallback to JSON file if it exists
+    if (!serviceAccount) {
+      const jsonFilePath = path.join(__dirname, 'firebase-service-account.json');
+      if (fs.existsSync(jsonFilePath)) {
+        try {
+          serviceAccount = require(jsonFilePath);
+          console.log('[FirebaseService] 📦 Loaded credentials from JSON file');
+        } catch (e) {
+          console.log('[FirebaseService] ⚠️  Failed to load JSON file:', e.message);
+        }
+      }
+    }
+
+    if (!serviceAccount) {
+      console.log('[FirebaseService] ℹ️  No Firebase credentials, using mock database');
+      this.useMockDatabase = true;
+      return;
+    }
+
+    if (!admin.apps.length) {
+      try {
+        console.log('[FirebaseService] 📦 Connecting to project:', serviceAccount.project_id);
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+          databaseURL: process.env.FIREBASE_DATABASE_URL || `https://${serviceAccount.project_id}-default-rtdb.firebaseio.com`,
+        });
+        this.db = admin.firestore();
+        this.auth = admin.auth();
+        console.log('[FirebaseService] ✅ Firestore initialized successfully');
+      } catch (error) {
+        console.warn('[FirebaseService] ⚠️  Firebase init failed:', error.message);
+        this.useMockDatabase = true;
+      }
+    } else {
+      this.db = admin.firestore();
+      this.auth = admin.auth();
+      console.log('[FirebaseService] ✅ Using existing Firebase app');
+    }
+  }
+
+  async createDocument(collection, data) {
+    if (this.useMockDatabase) {
+      const id = require('uuid').v4();
+      if (!this.mockDatabase.has(collection)) {
+        this.mockDatabase.set(collection, new Map());
+      }
+      this.mockDatabase.get(collection).set(id, { id, ...data });
+      return id;
+    }
+    const docRef = await this.db.collection(collection).add(data);
+    return docRef.id;
+  }
+
+  async setDocument(collection, id, data) {
+    if (this.useMockDatabase) {
+      if (!this.mockDatabase.has(collection)) {
+        this.mockDatabase.set(collection, new Map());
+      }
+      this.mockDatabase.get(collection).set(id, { id, ...data });
+      return;
+    }
+    try {
+      await this.db.collection(collection).doc(id).set(data);
+      console.log(`[FirebaseService] ✅ Document set: ${collection}/${id}`);
+    } catch (error) {
+      console.warn(`[FirebaseService] ⚠️  setDocument failed, using mock: ${error.message}`);
+      this.useMockDatabase = true;
+      if (!this.mockDatabase.has(collection)) {
+        this.mockDatabase.set(collection, new Map());
+      }
+      this.mockDatabase.get(collection).set(id, { id, ...data });
+    }
+  }
+
+  async getDocument(collection, id) {
+    if (this.useMockDatabase) {
+      return this.mockDatabase.get(collection)?.get(id) || null;
+    }
+    const doc = await this.db.collection(collection).doc(id).get();
+    if (!doc.exists) return null;
+    return { id: doc.id, ...doc.data() };
+  }
+
+  async getCollection(collection, limit = 100) {
+    if (this.useMockDatabase) {
+      const docs = Array.from(this.mockDatabase.get(collection)?.values() || []);
+      console.log(`[FirebaseService] ✅ Retrieved ${docs.length} docs from mock: ${collection}`);
+      return docs.slice(0, limit);
+    }
+    try {
+      const snapshot = await this.db.collection(collection).limit(limit).get();
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log(`[FirebaseService] ✅ Retrieved ${docs.length} docs from Firestore: ${collection}`);
+      return docs;
+    } catch (error) {
+      console.warn(`[FirebaseService] ⚠️  getCollection failed: ${error.message}`);
+      this.useMockDatabase = true;
+      return Array.from(this.mockDatabase.get(collection)?.values() || []).slice(0, limit);
+    }
+  }
+
+  async queryCollection(collection, field, operator, value) {
+    if (this.useMockDatabase) {
+      const docs = Array.from(this.mockDatabase.get(collection)?.values() || []);
+      return docs.filter(doc => {
+        if (operator === '==') return doc[field] === value;
+        if (operator === '<') return doc[field] < value;
+        if (operator === '>') return doc[field] > value;
+        if (operator === '<=') return doc[field] <= value;
+        if (operator === '>=') return doc[field] >= value;
+        if (operator === '!=') return doc[field] !== value;
+        return false;
+      });
+    }
+    try {
+      const snapshot = await this.db.collection(collection).where(field, operator, value).get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.warn(`[FirebaseService] ⚠️  queryCollection failed: ${error.message}`);
+      this.useMockDatabase = true;
+      const docs = Array.from(this.mockDatabase.get(collection)?.values() || []);
+      return docs.filter(doc => {
+        if (operator === '==') return doc[field] === value;
+        return false;
+      });
+    }
+  }
+
+  async updateDocument(collection, id, data) {
+    if (this.useMockDatabase) {
+      const existing = this.mockDatabase.get(collection)?.get(id);
+      if (existing) {
+        this.mockDatabase.get(collection).set(id, { ...existing, ...data });
+      }
+      return;
+    }
+    await this.db.collection(collection).doc(id).update(data);
+  }
+
+  async deleteDocument(collection, id) {
+    if (this.useMockDatabase) {
+      this.mockDatabase.get(collection)?.delete(id);
+      return;
+    }
+    await this.db.collection(collection).doc(id).delete();
+  }
+
+  // Clear all data from a collection
+  async clearCollection(collection) {
+    if (this.useMockDatabase) {
+      this.mockDatabase.set(collection, new Map());
+      console.log(`[FirebaseService] 🗑️ Cleared mock collection: ${collection}`);
+      return;
+    }
+    const snapshot = await this.db.collection(collection).get();
+    const batch = this.db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    console.log(`[FirebaseService] 🗑️ Cleared Firestore collection: ${collection}`);
+  }
+
+  // Clear all collections
+  async clearAllData() {
+    const collections = ['vendors', 'customers', 'offers', 'redemptions', 'vendor_offer_actions', 'otp_verifications', 'broadcasts'];
+    for (const col of collections) {
+      await this.clearCollection(col);
+    }
+    console.log('[FirebaseService] 🗑️ All data cleared!');
+  }
+
+  // Get stats about stored data
+  getDataStats() {
+    if (this.useMockDatabase) {
+      const stats = {};
+      this.mockDatabase.forEach((value, key) => {
+        stats[key] = value.size;
+      });
+      return stats;
+    }
+    return { message: 'Using Firestore - check Firebase console' };
+  }
+}
+
+module.exports = new FirebaseService();
