@@ -83,12 +83,18 @@ class VendorService {
 
   async generateQRCode(vendorId) {
     try {
-      const qrCodeUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/offer/${vendorId}`;
+      if (!process.env.FRONTEND_URL) {
+        throw new Error('FRONTEND_URL is not set in environment variables');
+      }
+
+      const qrCodeUrl = `${process.env.FRONTEND_URL}/offer/${vendorId}`;
       const qrCodeDataUrl = await QRCode.toDataURL(qrCodeUrl);
-      console.log(`[VendorService] ✅ Generated QR code for vendor ${vendorId}`);
+
+      console.log(`[VendorService] ✅ Generated QR code for vendor ${vendorId} → ${qrCodeUrl}`);
       return qrCodeDataUrl;
     } catch (error) {
-      throw { status: 400, message: 'Failed to generate QR code' };
+      console.error('[VendorService] ❌ QR generation failed:', error.message);
+      throw { status: 400, message: 'Failed to generate QR code: ' + error.message };
     }
   }
 
