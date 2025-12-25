@@ -97,4 +97,15 @@ router.get('/:vendorId/stats', async (req, res, next) => {
   }
 });
 
+// POST /api/vendor/:vendorId/regenerate-qr
+router.post('/:vendorId/regenerate-qr', async (req, res, next) => {
+  try {
+    const qrCodeUrl = await vendorService.generateQRCode(req.params.vendorId);
+    await vendorService.updateVendor(req.params.vendorId, { qr_code_url: qrCodeUrl });
+    res.json({ success: true, message: 'QR code regenerated successfully', data: { qr_code_url: qrCodeUrl } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
