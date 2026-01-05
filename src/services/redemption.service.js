@@ -45,6 +45,10 @@ class RedemptionService {
         return {
           sessionId: match.sessionId,
           redemptionId: match.id,
+          otp: match.otp, // Return existing OTP
+          offerTitle: match.offerTitle,
+          offerDescription: match.offerDescription,
+          discountPercent: match.discountPercent,
           message: 'You already have an active offer and OTP. Please redeem before requesting a new one.'
         };
       }
@@ -110,6 +114,10 @@ class RedemptionService {
     return {
       sessionId,
       redemptionId,
+      otp, // Return OTP so frontend can display it
+      offerTitle,
+      offerDescription,
+      discountPercent: discount,
       message: `OTP generated. You have received a ${discount}% discount offer. Valid for 2 months.`
     };
   }

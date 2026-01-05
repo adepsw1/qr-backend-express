@@ -24,6 +24,38 @@ router.post('/register', async (req, res, next) => {
   }
 });
 
+// POST /api/redemption/generate-otp - Generate OTP for customer (frontend calls this)
+router.post('/generate-otp', async (req, res, next) => {
+  try {
+    const { customerName, phoneNumber, vendorId, offerId } = req.body;
+    if (!vendorId || !customerName || !phoneNumber) {
+      return res.status(400).json({ success: false, message: 'Vendor ID, customer name, and phone number required' });
+    }
+
+    const result = await redemptionService.registerForOffer({ 
+      vendorId, 
+      name: customerName, 
+      phoneNumber,
+      offerId 
+    });
+    
+    res.json({
+      success: true,
+      message: result.message || 'OTP generated successfully',
+      data: {
+        otp: result.otp,
+        sessionId: result.sessionId,
+        redemptionId: result.redemptionId,
+        offerTitle: result.offerTitle,
+        discountPercent: result.discountPercent,
+      },
+      otp: result.otp // Also at root level for backward compatibility
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/redemption/session/:sessionId - Get session details (OTP + offer info)
 router.get('/session/:sessionId', async (req, res, next) => {
   try {
