@@ -90,12 +90,11 @@ class FirebaseService {
       await this.db.collection(collection).doc(id).set(data);
       console.log(`[FirebaseService] ✅ Document set: ${collection}/${id}`);
     } catch (error) {
-      console.warn(`[FirebaseService] ⚠️  setDocument failed, using mock: ${error.message}`);
-      this.useMockDatabase = true;
-      if (!this.mockDatabase.has(collection)) {
-        this.mockDatabase.set(collection, new Map());
-      }
-      this.mockDatabase.get(collection).set(id, { id, ...data });
+      console.error(`[FirebaseService] 🔴 CRITICAL: setDocument FAILED for ${collection}/${id}`);
+      console.error(`[FirebaseService] Error Code: ${error.code}`);
+      console.error(`[FirebaseService] Error Message: ${error.message}`);
+      console.error(`[FirebaseService] Full Error:`, error);
+      throw error; // Don't silently fail - throw the error
     }
   }
 
@@ -161,7 +160,14 @@ class FirebaseService {
       }
       return;
     }
-    await this.db.collection(collection).doc(id).update(data);
+    try {
+      await this.db.collection(collection).doc(id).update(data);
+      console.log(`[FirebaseService] ✅ Document updated: ${collection}/${id}`);
+    } catch (error) {
+      console.error(`[FirebaseService] 🔴 CRITICAL: updateDocument FAILED for ${collection}/${id}`);
+      console.error(`[FirebaseService] Error: ${error.message}`);
+      throw error;
+    }
   }
 
   async deleteDocument(collection, id) {
@@ -169,7 +175,14 @@ class FirebaseService {
       this.mockDatabase.get(collection)?.delete(id);
       return;
     }
-    await this.db.collection(collection).doc(id).delete();
+    try {
+      await this.db.collection(collection).doc(id).delete();
+      console.log(`[FirebaseService] ✅ Document deleted: ${collection}/${id}`);
+    } catch (error) {
+      console.error(`[FirebaseService] 🔴 CRITICAL: deleteDocument FAILED for ${collection}/${id}`);
+      console.error(`[FirebaseService] Error: ${error.message}`);
+      throw error;
+    }
   }
 
   // Clear all data from a collection
