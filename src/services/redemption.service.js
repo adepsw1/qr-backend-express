@@ -231,6 +231,26 @@ class RedemptionService {
       pagination: { page, limit, total: allRedemptions.length, pages: Math.ceil(allRedemptions.length / limit) }
     };
   }
+
+  async getRedemptionStatus(redemptionId) {
+    const redemption = await firebaseService.getDocument('redemptions', redemptionId);
+    
+    if (!redemption) {
+      // If not found, it might have been deleted after redemption - check if it was redeemed
+      return {
+        status: 'redeemed',
+        message: 'Offer has been redeemed'
+      };
+    }
+
+    return {
+      status: redemption.status,
+      offerTitle: redemption.offerTitle,
+      discountPercent: redemption.discountPercent,
+      redeemedAt: redemption.redeemedAt || null,
+      otpExpiresAt: redemption.otpExpiresAt,
+    };
+  }
 }
 
 module.exports = new RedemptionService();

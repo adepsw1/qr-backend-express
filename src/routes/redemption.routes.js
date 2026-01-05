@@ -105,6 +105,19 @@ router.post('/confirm', async (req, res, next) => {
   }
 });
 
+// GET /api/redemption/:redemptionId/status - Check redemption status (for customer polling)
+router.get('/:redemptionId/status', async (req, res, next) => {
+  try {
+    const result = await redemptionService.getRedemptionStatus(req.params.redemptionId);
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/redemption/vendor/:vendorId/history - Get vendor redemption history
 router.get('/vendor/:vendorId/history', async (req, res, next) => {
   try {
