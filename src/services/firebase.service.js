@@ -50,10 +50,13 @@ class FirebaseService {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
           databaseURL: process.env.FIREBASE_DATABASE_URL || `https://${serviceAccount.project_id}-default-rtdb.firebaseio.com`,
+          storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`,
         });
         this.db = admin.firestore();
         this.auth = admin.auth();
+        this.bucket = admin.storage().bucket();
         console.log('[FirebaseService] ✅ Firestore initialized successfully');
+        console.log('[FirebaseService] ✅ Cloud Storage initialized successfully');
       } catch (error) {
         console.warn('[FirebaseService] ⚠️  Firebase init failed:', error.message);
         this.useMockDatabase = true;
@@ -61,6 +64,7 @@ class FirebaseService {
     } else {
       this.db = admin.firestore();
       this.auth = admin.auth();
+      this.bucket = admin.storage().bucket();
       console.log('[FirebaseService] ✅ Using existing Firebase app');
     }
   }
@@ -218,6 +222,57 @@ class FirebaseService {
       return stats;
     }
     return { message: 'Using Firestore - check Firebase console' };
+  }
+
+  // Upload image to Cloud Storage and return public URL
+  async uploadImage(base64Data, fileName, folder = 'vendor-images') {
+    try {
+      // If using mock database, return a placeholder URL
+      if (this.useMockDatabase || !this.bucket) {
+        const placeholderUrl = `https://via.placeholder.com/300?text=${encodeURIComponent(fileName)}`;
+        console.log(`[FirebaseService] 📷 Using placeholder URL (no Cloud Storage): ${placeholderUrl}`);
+        return placeholderUrl;
+      }
+
+      // Remove data URL prefix if present (data:image/jpeg;base64,...)
+      const base64String = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+      
+      // Decode base64 to buffer
+      const buffer = Buffer.from(base64String, 'base64');
+      
+      // Generate unique filename with timestamp
+      const timestamp = Date.now();
+      const fileNameWithTime = `${timestamp}-${fileName.replace(/\s+/g, '_')}`;
+      const filePath = `${folder}/${fileNameWithTime}`;
+      
+      // Create file reference and upload
+      const file = this.bucket.file(filePath);
+      
+      await new Promise((resolve, reject) => {
+        const writeStream = file.createWriteStream({
+          metadata: {
+            contentType: 'image/jpeg',
+          },
+        });
+        
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+        writeStream.end(buffer);
+      });
+
+      // Generate signed URL (7 days expiration)
+      const [url] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      console.log(`[FirebaseService] ✅ Image uploaded: ${filePath}`);
+      return url;
+    } catch (error) {
+      console.error(`[FirebaseService] 🔴 Image upload failed:`, error.message);
+      throw new Error(`Image upload failed: ${error.message}`);
+    }
   }
 }
 

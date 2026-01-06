@@ -132,4 +132,49 @@ router.post('/:vendorId/regenerate-qr', async (req, res, next) => {
   }
 });
 
+// POST /api/vendor/:vendorId/upload-image
+// Accepts base64 encoded image data and stores in Firebase Cloud Storage
+router.post('/:vendorId/upload-image', async (req, res, next) => {
+  try {
+    const { vendorId } = req.params;
+    const { imageData, fileName } = req.body;
+    
+    if (!imageData) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Image data is required' 
+      });
+    }
+    
+    if (!fileName) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'File name is required' 
+      });
+    }
+    
+    console.log(`[Vendor Upload] Uploading image for vendor ${vendorId}: ${fileName}`);
+    
+    // Upload to Firebase Cloud Storage
+    const firebaseService = require('../services/firebase.service');
+    const imageUrl = await firebaseService.uploadImage(imageData, fileName, `vendor-images/${vendorId}`);
+    
+    console.log(`[Vendor Upload] ✅ Image uploaded successfully: ${imageUrl.substring(0, 50)}...`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Image uploaded successfully',
+      data: { 
+        imageUrl: imageUrl 
+      } 
+    });
+  } catch (err) {
+    console.error(`[Vendor Upload] ❌ Upload error:`, err.message || err);
+    res.status(500).json({ 
+      success: false, 
+      message: err.message || 'Image upload failed'
+    });
+  }
+});
+
 module.exports = router;
