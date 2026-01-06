@@ -249,7 +249,7 @@ class FirebaseService {
       }
       
       // Return API endpoint to retrieve the image
-      const imageUrl = process.env.NEXT_PUBLIC_API_URL + '/api/images/' + imageId;
+      const imageUrl = process.env.NEXT_PUBLIC_API_URL + '/api/vendor/image/' + imageId;
       console.log('[FirebaseService] ✅ Image URL:', imageUrl);
       return imageUrl;
     } catch (error) {
