@@ -225,17 +225,33 @@ class FirebaseService {
   }
 
   // Upload image to Cloud Storage and return public URL
-    async uploadImage(base64Data, fileName, folder = 'vendor-images') {
+      async uploadImage(base64Data, fileName, folder = 'vendor-images') {
     try {
       const timestamp = Date.now();
       const imageId = timestamp + '-' + Math.random().toString(36).substr(2, 9);
       
-      console.log('[FirebaseService] 📷 Image ID:', imageId);
+      console.log('[FirebaseService] 📷 Storing image:', imageId);
       
-      // Return a temporary placeholder URL while bucket issue is resolved
-      const placeholderUrl = 'https://via.placeholder.com/800x600?text=' + encodeURIComponent(fileName);
-      console.log('[FirebaseService] ✅ Image URL:', placeholderUrl);
-      return placeholderUrl;
+      // Remove data URL prefix if present
+      const base64String = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+      
+      // Store in Firestore with base64 data
+      if (this.db && !this.useMockDatabase) {
+        await this.db.collection('vendor_images').doc(imageId).set({
+          id: imageId,
+          fileName: fileName,
+          imageData: base64String.substring(0, 1000000), // Store up to 1MB
+          uploadedAt: new Date(),
+          folder: folder,
+          size: base64String.length,
+        });
+        console.log('[FirebaseService] ✅ Image stored in Firestore');
+      }
+      
+      // Return API endpoint to retrieve the image
+      const imageUrl = process.env.NEXT_PUBLIC_API_URL + '/api/images/' + imageId;
+      console.log('[FirebaseService] ✅ Image URL:', imageUrl);
+      return imageUrl;
     } catch (error) {
       console.error('[FirebaseService] Error:', error.message);
       throw new Error('Image upload failed: ' + error.message);
