@@ -38,18 +38,19 @@ const productRoutes = require('./routes/product.routes');
 const app = express();
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Increase limit for any base64 data
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// CORS - Allow all origins for now (simplifies mobile/web access)
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3001',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'https://xnex.io',
-    'http://xnex.io',
-    '*', // Allow all during testing
-  ],
+  origin: true, // Allow all origins
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
+
+// Handle preflight requests
+app.options('*', cors());
 
 // Root endpoint
 app.get('/', (req, res) => {

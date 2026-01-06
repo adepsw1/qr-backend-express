@@ -37,9 +37,33 @@ router.get('/:vendorId', async (req, res, next) => {
 // PUT /api/vendor/:vendorId
 router.put('/:vendorId', async (req, res, next) => {
   try {
-    const vendor = await vendorService.updateVendor(req.params.vendorId, req.body);
+    const { vendorId } = req.params;
+    const updateData = req.body;
+    
+    // Log what we're updating (helpful for debugging)
+    const updateFields = Object.keys(updateData);
+    console.log(`[Vendor PUT] Updating vendor ${vendorId} - Fields: ${updateFields.join(', ')}`);
+    
+    // Validate image URLs if provided
+    if (updateData.profile_image && updateData.profile_image.length > 2000) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Profile image URL too long (max 2000 chars)' 
+      });
+    }
+    if (updateData.store_image && updateData.store_image.length > 2000) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Store image URL too long (max 2000 chars)' 
+      });
+    }
+    
+    const vendor = await vendorService.updateVendor(vendorId, updateData);
+    
+    console.log(`[Vendor PUT] ✅ Successfully updated vendor ${vendorId}`);
     res.json({ success: true, message: 'Vendor updated successfully', data: vendor });
   } catch (err) {
+    console.error(`[Vendor PUT] ❌ Error updating vendor:`, err.message || err);
     next(err);
   }
 });
