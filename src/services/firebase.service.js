@@ -50,7 +50,7 @@ class FirebaseService {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
           databaseURL: process.env.FIREBASE_DATABASE_URL || `https://${serviceAccount.project_id}-default-rtdb.firebaseio.com`,
-          storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`,
+          storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`,
         });
         this.db = admin.firestore();
         this.auth = admin.auth();
