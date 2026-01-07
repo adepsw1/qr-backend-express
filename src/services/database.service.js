@@ -39,4 +39,6 @@ sequelize.authenticate()
     console.error('Error:', err);
   });
 
+module.exports = { sequelize };
+
 module.exports = sequelize;
