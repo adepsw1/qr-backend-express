@@ -249,7 +249,8 @@ class FirebaseService {
       }
       
       // Return API endpoint to retrieve the image
-      const imageUrl = process.env.NEXT_PUBLIC_API_URL + '/api/vendor/image/' + imageId;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'https://qr-backend-express.onrender.com';
+      const imageUrl = apiUrl + '/api/vendor/image/' + imageId;
       console.log('[FirebaseService] ✅ Image URL:', imageUrl);
       return imageUrl;
     } catch (error) {
@@ -260,3 +261,4 @@ class FirebaseService {
 }
 
 module.exports = new FirebaseService();
+

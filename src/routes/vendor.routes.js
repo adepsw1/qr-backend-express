@@ -190,9 +190,11 @@ router.get('/image/:imageId', async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Image not found' });
     }
     
-    // Return as data URL in JSON response
-    const dataUrl = 'data:image/jpeg;base64,' + imageDoc.imageData;
-    res.json({ success: true, data: { imageUrl: dataUrl } });
+    // Convert base64 to buffer and send as actual image
+    const imageBuffer = Buffer.from(imageDoc.imageData, 'base64');
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=31536000');
+    res.send(imageBuffer);
   } catch (err) {
     console.error('[Image Retrieval] Error:', err.message);
     res.status(500).json({ success: false, message: 'Failed to retrieve image' });
@@ -200,3 +202,4 @@ router.get('/image/:imageId', async (req, res, next) => {
 });
 
 module.exports = router;
+
