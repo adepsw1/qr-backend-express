@@ -1,4 +1,4 @@
-﻿const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const firebaseService = require('./firebase.service');
 
@@ -10,7 +10,7 @@ class QRService {
   async generateBatchQRTokens(count, layout = 'blue') {
     const tokens = [];
     const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com';
-    
+
     for (let i = 0; i < count; i++) {
       try {
         // Generate unique token like QR_ABC123XYZ
@@ -34,10 +34,10 @@ class QRService {
 
         await firebaseService.setDocument('qr_tokens', token, qrTokenData);
         tokens.push({ token, status: 'unclaimed' });
-
-        console.log(`[QRService]  Generated QR token: ${token}`);
+        
+        console.log(`[QRService] ✅ Generated QR token: ${token}`);
       } catch (error) {
-        console.error(`[QRService]  Failed to generate QR token ${i}:`, error.message);
+        console.error(`[QRService] ❌ Failed to generate QR token ${i}:`, error.message);
       }
     }
 
@@ -65,9 +65,9 @@ class QRService {
             console.log(`[QRService] Vendor not found for claimed QR: ${qrToken.vendor_id}`);
           }
         }
-
-        throw {
-          status: 410,
+        
+        throw { 
+          status: 410, 
           message: 'QR token already claimed',
           claimed: true,
           vendor_id: qrToken.vendor_id,
@@ -94,7 +94,7 @@ class QRService {
   async claimQRToken(token, vendorId) {
     try {
       const qrToken = await firebaseService.getDocument('qr_tokens', token);
-
+      
       if (!qrToken) {
         throw { status: 404, message: 'QR token not found' };
       }
@@ -110,8 +110,8 @@ class QRService {
         claimed_at: new Date().toISOString(),
       });
 
-      console.log(`[QRService]  Claimed QR token ${token} for vendor ${vendorId}`);
-
+      console.log(`[QRService] ✅ Claimed QR token ${token} for vendor ${vendorId}`);
+      
       return {
         token,
         vendor_id: vendorId,
@@ -129,7 +129,7 @@ class QRService {
   async getAllQRTokens(page = 1, limit = 50, filterStatus = null) {
     try {
       let tokens = await firebaseService.getCollection('qr_tokens');
-
+      
       if (filterStatus) {
         tokens = tokens.filter(t => t.status === filterStatus);
       }
@@ -155,7 +155,7 @@ class QRService {
   async getQRToken(token) {
     try {
       const qrToken = await firebaseService.getDocument('qr_tokens', token);
-
+      
       if (!qrToken) {
         throw { status: 404, message: 'QR token not found' };
       }
@@ -173,17 +173,16 @@ class QRService {
   async deleteQRToken(token) {
     try {
       await firebaseService.deleteDocument('qr_tokens', token);
-      console.log(`[QRService]  Deleted QR token: ${token}`);
+      console.log(`[QRService] ✅ Deleted QR token: ${token}`);
       return { success: true };
     } catch (error) {
       throw { status: 500, message: 'Error deleting QR token: ' + error.message };
     }
   }
-
-  /**
-   * Regenerate QR to point directly to vendor storefront
-   */
-  async regenerateQRForStorefront(token, vendorId, frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com') {
+  /**`n
+   * Regenerate QR to point directly to vendor storefront`n
+   */`n
+  async regenerateQRForStorefront(token, vendorId, frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingsite.com') {
     try {
       const qrToken = await firebaseService.getDocument('qr_tokens', token);
 
@@ -195,25 +194,24 @@ class QRService {
         throw { status: 400, message: 'QR token not claimed by this vendor' };
       }
 
-      // Generate new QR that points directly to redirect endpoint (keeps same token)
-      const redirectUrl = `${frontendUrl}/qr/redirect/${token}`;
-      const qrImage = await QRCode.toDataURL(redirectUrl);
+      // Generate new QR that points directly to vendor storefront
+      const storefrontUrl = \/scan/\;
+      const qrImage = await QRCode.toDataURL(storefrontUrl);
 
       // Update QR token with new image
       await firebaseService.updateDocument('qr_tokens', token, {
         qr_image: qrImage,
-        registration_url: redirectUrl,
+        registration_url: storefrontUrl,
         updated_at: new Date().toISOString(),
       });
 
-      console.log(`[QRService]  Updated QR image for token: ${token}`);
+      console.log([QRService]  Updated QR image to point to vendor storefront: \);
 
-      return { qr_image: qrImage, redirect_url: redirectUrl };
+      return { qr_image: qrImage, storefront_url: storefrontUrl };
     } catch (error) {
       if (error.status) throw error;
       throw { status: 500, message: 'Error regenerating QR: ' + error.message };
     }
   }
-}
 
-module.exports = new QRService();
+
