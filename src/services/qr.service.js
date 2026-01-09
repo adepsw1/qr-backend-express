@@ -23,7 +23,7 @@ class QRService {
         // Store in QR_TOKENS collection
         const qrTokenData = {
           token,
-          registration_url: registrationUrl,
+          registration_url: qrValidationUrl,
           qr_image: qrImage,
           layout,
           status: 'unclaimed', // unclaimed, claimed
@@ -182,5 +182,6 @@ class QRService {
 }
 
 module.exports = new QRService();
+
 
 
