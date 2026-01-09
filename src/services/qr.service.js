@@ -16,14 +16,14 @@ class QRService {
         // Generate unique token like QR_ABC123XYZ
         const token = `QR_${uuidv4().substring(0, 8).toUpperCase()}${uuidv4().substring(0, 3).toUpperCase()}`;
         
-        // Generate QR code that links to QR validation gateway
-        const qrValidationUrl = `${frontendUrl}/qr/validate?token=${token}`;
-        const qrImage = await QRCode.toDataURL(qrValidationUrl);
+        // Generate QR code that directly redirects to vendor storefront
+        const qrRedirectUrl = `${frontendUrl}/qr/redirect/${token}`;
+        const qrImage = await QRCode.toDataURL(qrRedirectUrl);
 
         // Store in QR_TOKENS collection
         const qrTokenData = {
           token,
-          registration_url: qrValidationUrl,
+          registration_url: qrRedirectUrl,
           qr_image: qrImage,
           layout,
           status: 'unclaimed', // unclaimed, claimed
@@ -220,3 +220,4 @@ module.exports = new QRService();
       throw { status: 500, message: 'Error regenerating QR: ' + error.message };
     }
   }
+

@@ -6,22 +6,43 @@ const qrService = require('../services/qr.service');
 router.post('/generate-batch', async (req, res, next) => {
   try {
     const { count, layout } = req.body;
-    
+
     if (!count || count < 1 || count > 500) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Count must be between 1 and 500' 
+      return res.status(400).json({
+        success: false,
+        message: 'Count must be between 1 and 500'
       });
     }
 
     const result = await qrService.generateBatchQRTokens(count, layout || 'blue');
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `Generated ${result.generated} QR tokens`,
-      data: result 
+      data: result
     });
   } catch (err) {
     next(err);
+  }
+});
+
+// GET /api/qr/redirect/:token - Direct redirect to vendor storefront (FASTEST - NO PAGE LOAD)
+router.get('/redirect/:token', async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const qrToken = await qrService.validateQRToken(token);
+    
+    // If unclaimed, redirect to registration page
+    const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com';
+    return res.redirect(`${frontendUrl}/vendor/register?token=${token}`);
+  } catch (err) {
+    // If claimed (status 410), get vendor_id from error and redirect to storefront
+    if (err.status === 410 && err.vendor_id) {
+      const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com';
+      return res.redirect(`${frontendUrl}/scan/${err.vendor_id}`);
+    }
+    // If QR not found or other error, redirect to home
+    const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com';
+    return res.redirect(frontendUrl);
   }
 });
 
@@ -43,24 +64,23 @@ router.post('/:token/claim', async (req, res, next) => {
     const { vendorId } = req.body;
 
     if (!vendorId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Vendor ID is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Vendor ID is required'
       });
     }
 
     const result = await qrService.claimQRToken(token, vendorId);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'QR token claimed successfully',
-      data: result 
+      data: result
     });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/qr - Get all QR tokens (admin)
 // GET /api/qr - Get all QR tokens (admin)
 router.get('/', async (req, res, next) => {
   // TODO: Add auth middleware here
