@@ -1,0 +1,167 @@
+const { v4: uuidv4 } = require('uuid');
+const QRCode = require('qrcode');
+const firebaseService = require('./firebase.service');
+
+class QRService {
+  /**
+   * Generate batch of pre-generated QR tokens
+   * Each QR token is unique and can be claimed by vendors during registration
+   */
+  async generateBatchQRTokens(count, layout = 'blue') {
+    const tokens = [];
+    const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com';
+
+    for (let i = 0; i < count; i++) {
+      try {
+        // Generate unique token like QR_ABC123XYZ
+        const token = `QR_${uuidv4().substring(0, 8).toUpperCase()}${uuidv4().substring(0, 3).toUpperCase()}`;
+        
+        // Generate QR code that links to registration with token
+        const registrationUrl = `${frontendUrl}/vendor/register?token=${token}`;
+        const qrImage = await QRCode.toDataURL(registrationUrl);
+
+        // Store in QR_TOKENS collection
+        const qrTokenData = {
+          token,
+          registration_url: registrationUrl,
+          qr_image: qrImage,
+          layout,
+          status: 'unclaimed', // unclaimed, claimed
+          vendor_id: null,
+          created_at: new Date().toISOString(),
+          claimed_at: null,
+        };
+
+        await firebaseService.setDocument('qr_tokens', token, qrTokenData);
+        tokens.push({ token, status: 'unclaimed' });
+        
+        console.log(`[QRService] ✅ Generated QR token: ${token}`);
+      } catch (error) {
+        console.error(`[QRService] ❌ Failed to generate QR token ${i}:`, error.message);
+      }
+    }
+
+    return { generated: tokens.length, total: count, tokens };
+  }
+
+  /**
+   * Validate if QR token exists and is unclaimed
+   */
+  async validateQRToken(token) {
+    try {
+      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+      
+      if (!qrToken) {
+        throw { status: 404, message: 'QR token not found' };
+      }
+
+      if (qrToken.status === 'claimed') {
+        throw { status: 400, message: 'QR token already claimed by another vendor' };
+      }
+
+      return {
+        token,
+        valid: true,
+        status: qrToken.status,
+        layout: qrToken.layout,
+      };
+    } catch (error) {
+      if (error.status) throw error;
+      throw { status: 500, message: 'Error validating QR token: ' + error.message };
+    }
+  }
+
+  /**
+   * Claim QR token and assign to vendor
+   */
+  async claimQRToken(token, vendorId) {
+    try {
+      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+      
+      if (!qrToken) {
+        throw { status: 404, message: 'QR token not found' };
+      }
+
+      if (qrToken.status === 'claimed') {
+        throw { status: 400, message: 'QR token already claimed' };
+      }
+
+      // Mark token as claimed
+      await firebaseService.updateDocument('qr_tokens', token, {
+        status: 'claimed',
+        vendor_id: vendorId,
+        claimed_at: new Date().toISOString(),
+      });
+
+      console.log(`[QRService] ✅ Claimed QR token ${token} for vendor ${vendorId}`);
+      
+      return {
+        token,
+        vendor_id: vendorId,
+        status: 'claimed',
+      };
+    } catch (error) {
+      if (error.status) throw error;
+      throw { status: 500, message: 'Error claiming QR token: ' + error.message };
+    }
+  }
+
+  /**
+   * Get all QR tokens (admin)
+   */
+  async getAllQRTokens(page = 1, limit = 50, filterStatus = null) {
+    try {
+      let tokens = await firebaseService.getCollection('qr_tokens');
+      
+      if (filterStatus) {
+        tokens = tokens.filter(t => t.status === filterStatus);
+      }
+
+      const start = (page - 1) * limit;
+      const end = start + limit;
+
+      return {
+        data: tokens.slice(start, end),
+        total: tokens.length,
+        page,
+        limit,
+        pages: Math.ceil(tokens.length / limit),
+      };
+    } catch (error) {
+      throw { status: 500, message: 'Error fetching QR tokens: ' + error.message };
+    }
+  }
+
+  /**
+   * Get QR token details
+   */
+  async getQRToken(token) {
+    try {
+      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+      
+      if (!qrToken) {
+        throw { status: 404, message: 'QR token not found' };
+      }
+
+      return qrToken;
+    } catch (error) {
+      if (error.status) throw error;
+      throw { status: 500, message: 'Error fetching QR token: ' + error.message };
+    }
+  }
+
+  /**
+   * Delete QR token (admin)
+   */
+  async deleteQRToken(token) {
+    try {
+      await firebaseService.deleteDocument('qr_tokens', token);
+      console.log(`[QRService] ✅ Deleted QR token: ${token}`);
+      return { success: true };
+    } catch (error) {
+      throw { status: 500, message: 'Error deleting QR token: ' + error.message };
+    }
+  }
+}
+
+module.exports = new QRService();

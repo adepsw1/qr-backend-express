@@ -5,7 +5,7 @@ const vendorService = require('../services/vendor.service');
 // POST /api/vendor/register
 router.post('/register', async (req, res, next) => {
   try {
-    const { businessName, email, phone, password, address } = req.body;
+    const { businessName, email, phone, password, address, qrToken, city, category } = req.body;
     if (!businessName || !email || !phone || !password || !address) {
       return res.status(400).json({ success: false, message: 'All fields required' });
     }
@@ -16,6 +16,9 @@ router.post('/register', async (req, res, next) => {
       phone_number: phone,
       password,
       address,
+      qrToken,
+      city,
+      category,
     });
 
     res.json({ success: true, message: 'Vendor registered successfully', data: vendor });
@@ -202,4 +205,5 @@ router.get('/image/:imageId', async (req, res, next) => {
 });
 
 module.exports = router;
+
 

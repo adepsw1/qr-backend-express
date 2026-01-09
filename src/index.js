@@ -35,6 +35,7 @@ const redemptionRoutes = require('./routes/redemption.routes');
 const broadcastRoutes = require('./routes/broadcast.routes');
 const webhookRoutes = require('./routes/webhook.routes');
 const productRoutes = require('./routes/product.routes');
+const qrRoutes = require('./routes/qr.routes');
 
 const app = express();
 
@@ -92,6 +93,7 @@ app.use('/api/redemption', redemptionRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/webhook', webhookRoutes);
 app.use('/api/product', productRoutes);
+app.use('/api/qr', qrRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

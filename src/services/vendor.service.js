@@ -1,12 +1,28 @@
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
 const firebaseService = require('./firebase.service');
+const qrService = require('./qr.service');
 
 class VendorService {
   async registerVendor(data) {
-    if (!data.name || !data.email || !data.phone_number || !data.password || !data.address) {
+    if (!data.name || !data.email || !data.phone_number || !data.password || !data.address) {   
       throw { status: 400, message: 'All fields required' };
+    }
+
+    // Optional fields with defaults
+    const city = data.city || '';
+    const category = data.category || 'general';
+    const qrToken = data.qrToken || null;
+
+    // If QR token provided, validate and claim it
+    if (qrToken) {
+      try {
+        await qrService.validateQRToken(qrToken);
+      } catch (error) {
+        throw error;
+      }
     }
 
     const existingByEmail = await firebaseService.queryCollection('vendors', 'email', '==', data.email);
@@ -20,7 +36,7 @@ class VendorService {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(data.password, salt);
 
-    // MINIMAL vendor data - only essential fields
+    // Create vendor record with all fields
     const vendor = {
       id: vendorId,
       name: data.name,
@@ -28,17 +44,41 @@ class VendorService {
       phone: data.phone_number,
       password: hashedPassword,
       address: data.address,
+      city,
+      category,
       qr_code_url: qrCodeUrl,
+      qr_token: qrToken, // Store reference to QR token that was claimed
       created_at: new Date().toISOString(),
     };
 
     await firebaseService.setDocument('vendors', vendorId, vendor);
+
+    // Claim QR token if provided
+    if (qrToken) {
+      try {
+        await qrService.claimQRToken(qrToken, vendorId);
+        console.log(`[VendorService] ✅ Claimed QR token ${qrToken} for vendor ${vendorId}`);
+      } catch (error) {
+        console.error(`[VendorService] ⚠️ Failed to claim QR token:`, error.message);
+        // Don't fail registration if token claim fails
+      }
+    }
+
+    // Generate JWT access token for auto-login
+    const accessToken = jwt.sign(
+      { vendorId, email: vendor.email, type: 'vendor-access' },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     console.log('[VendorService] ✅ Vendor registered:', vendorId);
 
     return {
+      success: true,
       id: vendor.id,
       name: vendor.name,
       qr_code_url: vendor.qr_code_url,
+      accessToken, // Return token for auto-login
     };
   }
 
@@ -122,8 +162,8 @@ class VendorService {
     const redemptions = await firebaseService.queryCollection('redemptions', 'vendorId', '==', vendorId);
     const redeemedCount = redemptions.filter(r => r.status === 'redeemed').length;
 
-    return { 
-      accepted_offers: accepted, 
+    return {
+      accepted_offers: accepted,
       pending_offers: pending,
       rejected_offers: rejected,
       total_offers: offers.length,
