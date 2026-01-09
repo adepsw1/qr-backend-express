@@ -50,6 +50,17 @@ class VendorService {
       qrCodeUrl = await this.generateQRCode(vendorId);
     }
 
+    // Generate slug from vendor name
+    const generateSlug = (name) => {
+      return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')  // Remove special characters
+        .replace(/\s+/g, '-')       // Replace spaces with hyphens
+        .replace(/-+/g, '-')        // Replace multiple hyphens with single hyphen
+        .replace(/^-+|-+$/g, '');   // Remove leading/trailing hyphens
+    };
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(data.password, salt);
 
@@ -66,6 +77,7 @@ class VendorService {
       qr_code_url: qrCodeUrl,
       qr_token: qrToken, // Store reference to QR token that was claimed
       qr_layout: claimedQRData?.layout || 'blue', // Store layout for later editing
+      slug: generateSlug(data.name),
       created_at: new Date().toISOString(),
     };
 
@@ -206,4 +218,5 @@ class VendorService {
 }
 
 module.exports = new VendorService();
+
 
