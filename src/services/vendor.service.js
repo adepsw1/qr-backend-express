@@ -69,9 +69,7 @@ class VendorService {
       created_at: new Date().toISOString(),
     };
 
-    await firebaseService.setDocument('vendors', vendorId, vendor);
-
-    // Claim QR token if provided
+    // Claim QR token if provided - DO THIS BEFORE SAVING VENDOR
     if (qrToken) {
       try {
         await qrService.claimQRToken(qrToken, vendorId);
@@ -81,8 +79,7 @@ class VendorService {
         try {
           const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingsite.com';
           const qrUpdate = await qrService.regenerateQRForStorefront(qrToken, vendorId, frontendUrl);
-          qrCodeUrl = qrUpdate.qr_image; // Update vendor's QR with new image
-          vendor.qr_code_url = qrCodeUrl;
+          vendor.qr_code_url = qrUpdate.qr_image; // Update vendor's QR with new image pointing to storefront
           console.log(`[VendorService] ✅ Updated QR to point directly to vendor storefront`);
         } catch (err) {
           console.warn('[VendorService] ⚠️ Could not update QR storefront link:', err.message);
@@ -92,6 +89,9 @@ class VendorService {
         // Don't fail registration if token claim fails
       }
     }
+
+    // NOW SAVE VENDOR WITH UPDATED QR URL
+    await firebaseService.setDocument('vendors', vendorId, vendor);
 
     // Generate JWT access token for auto-login
     const accessToken = jwt.sign(
