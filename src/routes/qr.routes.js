@@ -25,27 +25,6 @@ router.post('/generate-batch', async (req, res, next) => {
   }
 });
 
-// GET /api/qr/redirect/:token - Direct redirect to vendor storefront (FASTEST - NO PAGE LOAD)
-router.get('/redirect/:token', async (req, res, next) => {
-  try {
-    const { token } = req.params;
-    const qrToken = await qrService.validateQRToken(token);
-    
-    // If unclaimed, redirect to registration page
-    const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com';
-    return res.redirect(`${frontendUrl}/vendor/register?token=${token}`);
-  } catch (err) {
-    // If claimed (status 410), get vendor_id from error and redirect to storefront
-    if (err.status === 410 && err.vendor_id) {
-      const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com';
-      return res.redirect(`${frontendUrl}/scan/${err.vendor_id}`);
-    }
-    // If QR not found or other error, redirect to home
-    const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com';
-    return res.redirect(frontendUrl);
-  }
-});
-
 // GET /api/qr/validate/:token - Validate if token exists and is unclaimed
 router.get('/validate/:token', async (req, res, next) => {
   try {
@@ -53,6 +32,21 @@ router.get('/validate/:token', async (req, res, next) => {
     const result = await qrService.validateQRToken(token);
     res.json({ success: true, data: result });
   } catch (err) {
+    // Handle 410 error for claimed QR tokens
+    if (err.status === 410) {
+      return res.status(410).json({ 
+        success: false, 
+        message: err.message, 
+        claimed: true,
+        vendor_id: err.vendor_id,
+        vendor_slug: err.vendor_slug,
+        vendor_name: err.vendor_name
+      });
+    }
+    // Handle other errors
+    if (err.status && err.status < 500) {
+      return res.status(err.status).json({ success: false, message: err.message });
+    }
     next(err);
   }
 });
@@ -83,8 +77,6 @@ router.post('/:token/claim', async (req, res, next) => {
 
 // GET /api/qr - Get all QR tokens (admin)
 router.get('/', async (req, res, next) => {
-  // TODO: Add auth middleware here
-  // const token = req.headers.authorization?.split(' ')[1];
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -120,4 +112,3 @@ router.delete('/:token', async (req, res, next) => {
 });
 
 module.exports = router;
-
