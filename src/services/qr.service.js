@@ -50,13 +50,30 @@ class QRService {
   async validateQRToken(token) {
     try {
       const qrToken = await firebaseService.getDocument('qr_tokens', token);
-      
+
       if (!qrToken) {
         throw { status: 404, message: 'QR token not found' };
       }
 
       if (qrToken.status === 'claimed') {
-        throw { status: 400, message: 'QR token already claimed by another vendor' };
+        // QR is already claimed - return vendor details so customer can view their storefront
+        let vendorDetails = null;
+        if (qrToken.vendor_id) {
+          try {
+            vendorDetails = await firebaseService.getDocument('vendors', qrToken.vendor_id);
+          } catch (err) {
+            console.log(`[QRService] Vendor not found for claimed QR: ${qrToken.vendor_id}`);
+          }
+        }
+        
+        throw { 
+          status: 410, 
+          message: 'QR token already claimed',
+          claimed: true,
+          vendor_id: qrToken.vendor_id,
+          vendor_slug: vendorDetails?.slug || qrToken.vendor_id,
+          vendor_name: vendorDetails?.name || 'Unknown Vendor'
+        };
       }
 
       return {
