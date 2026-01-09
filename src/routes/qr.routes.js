@@ -61,7 +61,10 @@ router.post('/:token/claim', async (req, res, next) => {
 });
 
 // GET /api/qr - Get all QR tokens (admin)
+// GET /api/qr - Get all QR tokens (admin)
 router.get('/', async (req, res, next) => {
+  // TODO: Add auth middleware here
+  // const token = req.headers.authorization?.split(' ')[1];
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -97,3 +100,4 @@ router.delete('/:token', async (req, res, next) => {
 });
 
 module.exports = router;
+
