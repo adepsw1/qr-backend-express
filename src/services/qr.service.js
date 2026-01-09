@@ -16,9 +16,9 @@ class QRService {
         // Generate unique token like QR_ABC123XYZ
         const token = `QR_${uuidv4().substring(0, 8).toUpperCase()}${uuidv4().substring(0, 3).toUpperCase()}`;
         
-        // Generate QR code that links to registration with token
-        const registrationUrl = `${frontendUrl}/vendor/register?token=${token}`;
-        const qrImage = await QRCode.toDataURL(registrationUrl);
+        // Generate QR code that links to QR validation gateway
+        const qrValidationUrl = `${frontendUrl}/qr/validate?token=${token}`;
+        const qrImage = await QRCode.toDataURL(qrValidationUrl);
 
         // Store in QR_TOKENS collection
         const qrTokenData = {
@@ -182,3 +182,5 @@ class QRService {
 }
 
 module.exports = new QRService();
+
+
