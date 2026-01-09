@@ -185,3 +185,38 @@ module.exports = new QRService();
 
 
 
+
+  /**
+   * Regenerate QR to point directly to vendor storefront
+   */
+  async regenerateQRForStorefront(token, vendorId, frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingsite.com') {
+    try {
+      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+
+      if (!qrToken) {
+        throw { status: 404, message: 'QR token not found' };
+      }
+
+      if (qrToken.status !== 'claimed' || qrToken.vendor_id !== vendorId) {
+        throw { status: 400, message: 'QR token not claimed by this vendor' };
+      }
+
+      // Generate new QR that points directly to vendor storefront
+      const storefrontUrl = \/scan/\;
+      const qrImage = await QRCode.toDataURL(storefrontUrl);
+
+      // Update QR token with new image
+      await firebaseService.updateDocument('qr_tokens', token, {
+        qr_image: qrImage,
+        registration_url: storefrontUrl,
+        updated_at: new Date().toISOString(),
+      });
+
+      console.log([QRService]  Updated QR image to point to vendor storefront: \);
+
+      return { qr_image: qrImage, storefront_url: storefrontUrl };
+    } catch (error) {
+      if (error.status) throw error;
+      throw { status: 500, message: 'Error regenerating QR: ' + error.message };
+    }
+  }

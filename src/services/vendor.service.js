@@ -76,6 +76,17 @@ class VendorService {
       try {
         await qrService.claimQRToken(qrToken, vendorId);
         console.log(`[VendorService] ✅ Claimed QR token ${qrToken} for vendor ${vendorId}`);
+        
+        // Update QR to point directly to vendor storefront
+        try {
+          const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingsite.com';
+          const qrUpdate = await qrService.regenerateQRForStorefront(qrToken, vendorId, frontendUrl);
+          qrCodeUrl = qrUpdate.qr_image; // Update vendor's QR with new image
+          vendor.qr_code_url = qrCodeUrl;
+          console.log(`[VendorService] ✅ Updated QR to point directly to vendor storefront`);
+        } catch (err) {
+          console.warn('[VendorService] ⚠️ Could not update QR storefront link:', err.message);
+        }
       } catch (error) {
         console.error(`[VendorService] ⚠️ Failed to claim QR token:`, error.message);
         // Don't fail registration if token claim fails
@@ -195,3 +206,4 @@ class VendorService {
 }
 
 module.exports = new VendorService();
+
