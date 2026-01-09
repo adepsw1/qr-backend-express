@@ -1,4 +1,4 @@
-﻿const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const firebaseService = require('./firebase.service');
 
@@ -217,3 +217,5 @@ class QRService {
 }
 
 module.exports = new QRService();
+
+
