@@ -89,7 +89,24 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// GET /api/qr/:token - Get QR token details
+
+// POST /api/qr/:token/verify - Admin verifies a claimed QR token
+router.post('/:token/verify', async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const result = await qrService.verifyQRToken(token);
+    res.json({
+      success: true,
+      message: 'QR token verified successfully',
+      data: result
+    });
+  } catch (err) {
+    if (err.status && err.status < 500) {
+      return res.status(err.status).json({ success: false, message: err.message });
+    }
+    next(err);
+  }
+});// GET /api/qr/:token - Get QR token details
 router.get('/:token', async (req, res, next) => {
   try {
     const { token } = req.params;
@@ -112,3 +129,4 @@ router.delete('/:token', async (req, res, next) => {
 });
 
 module.exports = router;
+

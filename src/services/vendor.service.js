@@ -84,7 +84,7 @@ class VendorService {
     // Claim QR token if provided - DO THIS BEFORE SAVING VENDOR
     if (qrToken) {
       try {
-        await qrService.claimQRToken(qrToken, vendorId);
+        await qrService.claimQRToken(qrToken, vendorId, slug);
         console.log(`[VendorService] ✅ Claimed QR token ${qrToken} for vendor ${vendorId}`);
         
         // Update QR to point directly to vendor storefront
@@ -218,5 +218,6 @@ class VendorService {
 }
 
 module.exports = new VendorService();
+
 
 

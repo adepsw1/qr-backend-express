@@ -55,8 +55,21 @@ class QRService {
         throw { status: 404, message: 'QR token not found' };
       }
 
-      if (qrToken.status === 'claimed') {
-        // QR is already claimed - return vendor details so customer can view their storefront
+      // If claimed and admin verified, return storefront details immediately
+      if (qrToken.status === 'claimed' && qrToken.admin_verified) {
+        return {
+          token,
+          valid: true,
+          claimed: true,
+          admin_verified: true,
+          vendor_id: qrToken.vendor_id,
+          vendor_slug: qrToken.vendor_slug || qrToken.vendor_id,
+          redirect_to_storefront: true
+        };
+      }
+
+      // If claimed but not verified yet, still in registration/verification phase
+      if (qrToken.status === 'claimed' && !qrToken.admin_verified) {
         let vendorDetails = null;
         if (qrToken.vendor_id) {
           try {
@@ -68,14 +81,16 @@ class QRService {
 
         throw {
           status: 410,
-          message: 'QR token already claimed',
+          message: 'QR token claimed but not verified yet',
           claimed: true,
+          admin_verified: false,
           vendor_id: qrToken.vendor_id,
-          vendor_slug: vendorDetails?.slug || qrToken.vendor_id,
+          vendor_slug: vendorDetails?.slug || qrToken.vendor_slug || qrToken.vendor_id,
           vendor_name: vendorDetails?.name || 'Unknown Vendor'
         };
       }
 
+      // Unclaimed QR
       return {
         token,
         valid: true,
@@ -91,7 +106,7 @@ class QRService {
   /**
    * Claim QR token and assign to vendor
    */
-  async claimQRToken(token, vendorId) {
+  async claimQRToken(token, vendorId, vendorSlug) {
     try {
       const qrToken = await firebaseService.getDocument('qr_tokens', token);
 
@@ -103,10 +118,12 @@ class QRService {
         throw { status: 400, message: 'QR token already claimed' };
       }
 
-      // Mark token as claimed
+      // Mark token as claimed and store vendor slug
       await firebaseService.updateDocument('qr_tokens', token, {
         status: 'claimed',
         vendor_id: vendorId,
+        vendor_slug: vendorSlug,
+        admin_verified: false,
         claimed_at: new Date().toISOString(),
       });
 
@@ -152,7 +169,46 @@ class QRService {
   /**
    * Get QR token details
    */
-  async getQRToken(token) {
+
+  /**
+   * Admin verifies a claimed QR token
+   * After verification, customer scans will redirect directly to storefront
+   */
+  async verifyQRToken(token) {
+    try {
+      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+
+      if (!qrToken) {
+        throw { status: 404, message: 'QR token not found' };
+      }
+
+      if (qrToken.status !== 'claimed') {
+        throw { status: 400, message: 'Can only verify claimed QR tokens' };
+      }
+
+      if (qrToken.admin_verified) {
+        throw { status: 400, message: 'QR token already verified' };
+      }
+
+      // Mark as admin verified
+      await firebaseService.updateDocument('qr_tokens', token, {
+        admin_verified: true,
+        verified_at: new Date().toISOString(),
+      });
+
+      console.log(`[QRService] Admin verified QR token ${token}`);
+
+      return {
+        token,
+        admin_verified: true,
+        vendor_id: qrToken.vendor_id,
+        vendor_slug: qrToken.vendor_slug
+      };
+    } catch (error) {
+      if (error.status) throw error;
+      throw { status: 500, message: 'Error verifying QR token: ' + error.message };
+    }
+  }  async getQRToken(token) {
     try {
       const qrToken = await firebaseService.getDocument('qr_tokens', token);
 
@@ -217,5 +273,8 @@ class QRService {
 }
 
 module.exports = new QRService();
+
+
+
 
 
