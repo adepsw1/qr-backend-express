@@ -27,6 +27,7 @@ if (!process.env.JWT_SECRET) {
 
 const firebaseService = require('./services/firebase.service');
 const { sequelize } = require('./services/database.service');
+const migrationRoutes = require('./routes/migration.routes');
 const authRoutes = require('./routes/auth.routes');
 const vendorRoutes = require('./routes/vendor.routes');
 const customerRoutes = require('./routes/customer.routes');
@@ -94,6 +95,7 @@ app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/webhook', webhookRoutes);
 app.use('/api/product', productRoutes);
 app.use('/api/qr', qrRoutes);
+app.use('/api/admin', migrationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
