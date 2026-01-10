@@ -198,6 +198,26 @@ async function initializeTables() {
       )
     `);
 
+    // vendor_images - Store images in both MySQL and Firebase
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS vendor_images (
+        id VARCHAR(255) PRIMARY KEY,
+        fileName VARCHAR(255),
+        imageData LONGBLOB,
+        uploadedAt VARCHAR(255),
+        folder VARCHAR(255),
+        size INT,
+        vendor_id VARCHAR(255),
+        image_url VARCHAR(500),
+        status VARCHAR(50) DEFAULT 'active',
+        metadata JSON,
+        created_at VARCHAR(255),
+        updated_at VARCHAR(255),
+        INDEX idx_vendor_id (vendor_id),
+        INDEX idx_fileName (fileName)
+      )
+    `);
+
     console.log('✅ All MySQL tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing tables:', error.message);

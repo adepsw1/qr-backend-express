@@ -136,7 +136,7 @@ router.post('/:vendorId/regenerate-qr', async (req, res, next) => {
 });
 
 // POST /api/vendor/:vendorId/upload-image
-// Accepts base64 encoded image data and stores in Firebase Cloud Storage
+// Accepts base64 encoded image data and stores in BOTH MySQL and Firebase
 router.post('/:vendorId/upload-image', async (req, res, next) => {
   try {
     const { vendorId } = req.params;
@@ -158,9 +158,9 @@ router.post('/:vendorId/upload-image', async (req, res, next) => {
     
     console.log(`[Vendor Upload] Uploading image for vendor ${vendorId}: ${fileName}`);
     
-    // Upload to Firebase Cloud Storage
-    const firebaseService = require('../services/firebase.service');
-    const imageUrl = await firebaseService.uploadImage(imageData, fileName, `vendor-images/${vendorId}`);
+    // Upload to BOTH MySQL and Firebase using hybrid image storage
+    const imageStorageService = require('../services/image-storage.service');
+    const imageUrl = await imageStorageService.uploadImage(imageData, fileName, `vendor-images/${vendorId}`, vendorId);
     
     console.log(`[Vendor Upload] ✅ Image uploaded successfully: ${imageUrl.substring(0, 50)}...`);
     
@@ -181,13 +181,13 @@ router.post('/:vendorId/upload-image', async (req, res, next) => {
 });
 
 
-// GET /api/images/:imageId - Retrieve stored image
+// GET /api/images/:imageId - Retrieve stored image from MySQL or Firebase
 router.get('/image/:imageId', async (req, res, next) => {
   try {
     const { imageId } = req.params;
-    const firebaseService = require('../services/firebase.service');
+    const imageStorageService = require('../services/image-storage.service');
     
-    const imageDoc = await firebaseService.getDocument('vendor_images', imageId);
+    const imageDoc = await imageStorageService.getImage(imageId);
     
     if (!imageDoc || !imageDoc.imageData) {
       return res.status(404).json({ success: false, message: 'Image not found' });
