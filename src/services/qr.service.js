@@ -190,33 +190,19 @@ class QRService {
         throw { status: 400, message: 'QR token already verified' };
       }
 
-      // Regenerate QR image to point directly to vendor storefront
-      let newQRImage = qrToken.qr_image; // fallback to current image
-      try {
-        const frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingsite.com';
-        const storefrontUrl = `${frontendUrl}/scan/${qrToken.vendor_slug || qrToken.vendor_id}`;
-        newQRImage = await QRCode.toDataURL(storefrontUrl);
-        console.log(`[QRService] Regenerated QR image to point to storefront: ${storefrontUrl}`);
-      } catch (err) {
-        console.warn(`[QRService] Could not regenerate QR image: ${err.message}`);
-      }
-
-      // Mark as admin verified and update QR image
+      // Mark as admin verified (DO NOT regenerate image - same token works forever!)
       await firebaseService.updateDocument('qr_tokens', token, {
         admin_verified: true,
         verified_at: new Date().toISOString(),
-        qr_image: newQRImage, // Updated image points to /scan/vendor-slug
-        registration_url: `${process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingsite.com'}/scan/${qrToken.vendor_slug || qrToken.vendor_id}`,
       });
 
-      console.log(`[QRService] Admin verified QR token ${token} - image updated to point to storefront`);
+      console.log(`[QRService] Admin verified QR token ${token}`);
 
       return {
         token,
         admin_verified: true,
         vendor_id: qrToken.vendor_id,
-        vendor_slug: qrToken.vendor_slug,
-        qr_image: newQRImage
+        vendor_slug: qrToken.vendor_slug
       };
     } catch (error) {
       if (error.status) throw error;
