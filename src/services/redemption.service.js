@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const firebaseService = require('./firebase.service');
+const hybridStorageService = require('./hybrid-storage.service');
 
 class RedemptionService {
   generateOTP() {
@@ -12,7 +12,7 @@ class RedemptionService {
     }
 
     // Ensure customer record exists
-    let customer = await firebaseService.getDocument('customers', data.phoneNumber);
+    let customer = await hybridStorageService.getDocument('customers', data.phoneNumber);
     if (!customer) {
       const customerId = uuidv4();
       customer = {
@@ -23,16 +23,16 @@ class RedemptionService {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      await firebaseService.setDocument('customers', data.phoneNumber, customer);
+      await hybridStorageService.setDocument('customers', data.phoneNumber, customer);
     } else if (data.name && customer.name !== data.name) {
       customer.name = data.name;
       customer.vendorId = data.vendorId;
       customer.updated_at = new Date().toISOString();
-      await firebaseService.updateDocument('customers', data.phoneNumber, customer);
+      await hybridStorageService.updateDocument('customers', data.phoneNumber, customer);
     }
 
     // Check for existing unredeemed offer
-    const existing = await firebaseService.queryCollection('redemptions', 'phoneNumber', '==', data.phoneNumber);
+    const existing = await hybridStorageService.queryCollection('redemptions', 'phoneNumber', '==', data.phoneNumber);
     const now = new Date();
 
     if (existing && existing.length > 0) {
@@ -108,7 +108,7 @@ class RedemptionService {
       updatedAt: now.toISOString(),
     };
 
-    await firebaseService.setDocument('redemptions', redemptionId, redemption);
+    await hybridStorageService.setDocument('redemptions', redemptionId, redemption);
     console.log(`[RedemptionService] ✅ OTP generated: ${data.phoneNumber}, Discount: ${discount}%, OTP: ${otp}`);
 
     return {
@@ -123,7 +123,7 @@ class RedemptionService {
   }
 
   async getSessionDetails(sessionId) {
-    const redemptions = await firebaseService.queryCollection('redemptions', 'sessionId', '==', sessionId);
+    const redemptions = await hybridStorageService.queryCollection('redemptions', 'sessionId', '==', sessionId);
 
     if (redemptions.length === 0) {
       throw { status: 404, message: 'Session not found' };
@@ -152,7 +152,7 @@ class RedemptionService {
       throw { status: 400, message: 'OTP and vendor ID are required' };
     }
 
-    const redemptions = await firebaseService.queryCollection('redemptions', 'otp', '==', data.otp);
+    const redemptions = await hybridStorageService.queryCollection('redemptions', 'otp', '==', data.otp);
 
     if (redemptions.length === 0) {
       throw { status: 404, message: 'Invalid OTP' };
@@ -188,7 +188,7 @@ class RedemptionService {
       throw { status: 400, message: 'Redemption ID and vendor ID are required' };
     }
 
-    const redemption = await firebaseService.getDocument('redemptions', data.redemptionId);
+    const redemption = await hybridStorageService.getDocument('redemptions', data.redemptionId);
 
     if (!redemption) {
       throw { status: 404, message: 'Redemption record not found' };
@@ -202,7 +202,7 @@ class RedemptionService {
       throw { status: 400, message: 'Offer already redeemed' };
     }
 
-    await firebaseService.updateDocument('redemptions', data.redemptionId, {
+    await hybridStorageService.updateDocument('redemptions', data.redemptionId, {
       status: 'redeemed',
       redeemedAt: new Date().toISOString(),
       redeemedByVendor: data.vendorId,
@@ -210,7 +210,7 @@ class RedemptionService {
     });
 
     // Delete after redeem to cleanup
-    await firebaseService.deleteDocument('redemptions', data.redemptionId);
+    await hybridStorageService.deleteDocument('redemptions', data.redemptionId);
 
     console.log(`[RedemptionService] ✅ Offer redeemed for: ${redemption.customerName}`);
 
@@ -222,7 +222,7 @@ class RedemptionService {
   }
 
   async getVendorRedemptions(vendorId, page = 1, limit = 50) {
-    const allRedemptions = await firebaseService.queryCollection('redemptions', 'vendorId', '==', vendorId);
+    const allRedemptions = await hybridStorageService.queryCollection('redemptions', 'vendorId', '==', vendorId);
     const start = (page - 1) * limit;
     const end = start + limit;
 
@@ -233,7 +233,7 @@ class RedemptionService {
   }
 
   async getRedemptionStatus(redemptionId) {
-    const redemption = await firebaseService.getDocument('redemptions', redemptionId);
+    const redemption = await hybridStorageService.getDocument('redemptions', redemptionId);
     
     if (!redemption) {
       // If not found, it might have been deleted after redemption - check if it was redeemed

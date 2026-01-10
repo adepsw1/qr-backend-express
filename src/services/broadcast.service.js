@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const firebaseService = require('./firebase.service');
+const hybridStorageService = require('./hybrid-storage.service');
 
 class BroadcastService {
   async createBroadcast(data) {
@@ -24,12 +24,12 @@ class BroadcastService {
       completed_at: null,
     };
 
-    await firebaseService.setDocument('broadcasts', broadcastId, broadcast);
+    await hybridStorageService.setDocument('broadcasts', broadcastId, broadcast);
     return broadcast;
   }
 
   async executeBroadcast(broadcastId) {
-    const broadcast = await firebaseService.getDocument('broadcasts', broadcastId);
+    const broadcast = await hybridStorageService.getDocument('broadcasts', broadcastId);
     if (!broadcast) {
       throw { status: 404, message: `Broadcast ${broadcastId} not found` };
     }
@@ -39,12 +39,12 @@ class BroadcastService {
     }
 
     const updated = { ...broadcast, status: 'queued', started_at: new Date().toISOString() };
-    await firebaseService.updateDocument('broadcasts', broadcastId, updated);
+    await hybridStorageService.updateDocument('broadcasts', broadcastId, updated);
     return updated;
   }
 
   async getBroadcast(broadcastId) {
-    const broadcast = await firebaseService.getDocument('broadcasts', broadcastId);
+    const broadcast = await hybridStorageService.getDocument('broadcasts', broadcastId);
     if (!broadcast) {
       throw { status: 404, message: `Broadcast ${broadcastId} not found` };
     }
@@ -52,14 +52,14 @@ class BroadcastService {
   }
 
   async getAllBroadcasts(page = 1, limit = 20) {
-    const allBroadcasts = await firebaseService.getCollection('broadcasts');
+    const allBroadcasts = await hybridStorageService.getCollection('broadcasts');
     const start = (page - 1) * limit;
     const end = start + limit;
     return { data: allBroadcasts.slice(start, end), total: allBroadcasts.length };
   }
 
   async cancelBroadcast(broadcastId) {
-    const broadcast = await firebaseService.getDocument('broadcasts', broadcastId);
+    const broadcast = await hybridStorageService.getDocument('broadcasts', broadcastId);
     if (!broadcast) {
       throw { status: 404, message: `Broadcast ${broadcastId} not found` };
     }
@@ -69,12 +69,12 @@ class BroadcastService {
     }
 
     const updated = { ...broadcast, status: 'cancelled' };
-    await firebaseService.updateDocument('broadcasts', broadcastId, updated);
+    await hybridStorageService.updateDocument('broadcasts', broadcastId, updated);
     return updated;
   }
 
   async getQueueStatus() {
-    const messageQueue = await firebaseService.getCollection('broadcast_queue');
+    const messageQueue = await hybridStorageService.getCollection('broadcast_queue');
     return {
       pending: messageQueue.filter(m => m.status === 'pending').length,
       processing: messageQueue.filter(m => m.status === 'processing').length,

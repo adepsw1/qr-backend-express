@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const firebaseService = require('./firebase.service');
+const hybridStorageService = require('./hybrid-storage.service');
 
 class OfferService {
   async createOffer(data) {
@@ -19,13 +19,13 @@ class OfferService {
       created_at: new Date().toISOString(),
     };
 
-    await firebaseService.setDocument('offers', offerId, offer);
+    await hybridStorageService.setDocument('offers', offerId, offer);
     console.log(`[OfferService] ✅ Offer created: ${offerId}`);
     return offer;
   }
 
   async getOffer(offerId) {
-    const offer = await firebaseService.getDocument('offers', offerId);
+    const offer = await hybridStorageService.getDocument('offers', offerId);
     if (!offer) {
       throw { status: 404, message: `Offer ${offerId} not found` };
     }
@@ -33,7 +33,7 @@ class OfferService {
   }
 
   async getAllOffers(page = 1, limit = 20) {
-    const allOffers = await firebaseService.getCollection('offers');
+    const allOffers = await hybridStorageService.getCollection('offers');
     console.log(`[OfferService] getAllOffers: Retrieved ${allOffers.length} offers`);
     const start = (page - 1) * limit;
     const end = start + limit;
@@ -41,7 +41,7 @@ class OfferService {
     const offersWithStats = await Promise.all(
       allOffers.map(async (offer) => {
         try {
-          const vendorActions = await firebaseService.queryCollection('vendor_offer_actions', 'offer_id', '==', offer.id);
+          const vendorActions = await hybridStorageService.queryCollection('vendor_offer_actions', 'offer_id', '==', offer.id);
           const accepted = vendorActions.filter(a => a.status === 'accepted').length;
           const rejected = vendorActions.filter(a => a.status === 'rejected').length;
           const pending = vendorActions.filter(a => a.status === 'pending').length;
@@ -60,22 +60,22 @@ class OfferService {
   }
 
   async updateOffer(offerId, data) {
-    const offer = await firebaseService.getDocument('offers', offerId);
+    const offer = await hybridStorageService.getDocument('offers', offerId);
     if (!offer) {
       throw { status: 404, message: `Offer ${offerId} not found` };
     }
 
     const updated = { ...offer, ...data, updated_at: new Date().toISOString() };
-    await firebaseService.updateDocument('offers', offerId, updated);
+    await hybridStorageService.updateDocument('offers', offerId, updated);
     return updated;
   }
 
   async deleteOffer(offerId) {
-    const offer = await firebaseService.getDocument('offers', offerId);
+    const offer = await hybridStorageService.getDocument('offers', offerId);
     if (!offer) {
       throw { status: 404, message: `Offer ${offerId} not found` };
     }
-    await firebaseService.deleteDocument('offers', offerId);
+    await hybridStorageService.deleteDocument('offers', offerId);
   }
 
   async publishOffer(offerId, vendorIds) {
@@ -87,7 +87,7 @@ class OfferService {
 
     for (const vendorId of vendorIds) {
       const selectionId = uuidv4();
-      await firebaseService.setDocument('vendor_offer_actions', selectionId, {
+      await hybridStorageService.setDocument('vendor_offer_actions', selectionId, {
         id: selectionId,
         offer_id: offerId,
         vendor_id: vendorId,
@@ -105,12 +105,12 @@ class OfferService {
   }
 
   async getOffersForVendor(vendorId) {
-    const vendorOffers = await firebaseService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
+    const vendorOffers = await hybridStorageService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
     const pendingOffers = vendorOffers.filter(sel => sel.status === 'pending');
     const offerDetails = [];
 
     for (const selection of pendingOffers) {
-      const offer = await firebaseService.getDocument('offers', selection.offer_id);
+      const offer = await hybridStorageService.getDocument('offers', selection.offer_id);
       if (offer) offerDetails.push(offer);
     }
 
@@ -118,19 +118,19 @@ class OfferService {
   }
 
   async vendorAcceptOffer(offerId, vendorId) {
-    const offer = await firebaseService.getDocument('offers', offerId);
+    const offer = await hybridStorageService.getDocument('offers', offerId);
     if (!offer) {
       throw { status: 404, message: `Offer ${offerId} not found` };
     }
 
-    const vendorOffers = await firebaseService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
+    const vendorOffers = await hybridStorageService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
     const offerAction = vendorOffers.find(o => o.offer_id === offerId);
 
     if (!offerAction) {
       throw { status: 404, message: 'Offer not found for this vendor' };
     }
 
-    await firebaseService.updateDocument('vendor_offer_actions', offerAction.id, {
+    await hybridStorageService.updateDocument('vendor_offer_actions', offerAction.id, {
       status: 'accepted',
       accepted_at: new Date().toISOString(),
     });
@@ -140,19 +140,19 @@ class OfferService {
   }
 
   async vendorRejectOffer(offerId, vendorId) {
-    const offer = await firebaseService.getDocument('offers', offerId);
+    const offer = await hybridStorageService.getDocument('offers', offerId);
     if (!offer) {
       throw { status: 404, message: `Offer ${offerId} not found` };
     }
 
-    const vendorOffers = await firebaseService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
+    const vendorOffers = await hybridStorageService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
     const offerAction = vendorOffers.find(o => o.offer_id === offerId);
 
     if (!offerAction) {
       throw { status: 404, message: 'Offer not found for this vendor' };
     }
 
-    await firebaseService.updateDocument('vendor_offer_actions', offerAction.id, {
+    await hybridStorageService.updateDocument('vendor_offer_actions', offerAction.id, {
       status: 'rejected',
       rejected_at: new Date().toISOString(),
     });
@@ -175,11 +175,11 @@ class OfferService {
   }
 
   async getVendorOffers(vendorId, page = 1, limit = 20) {
-    const vendorOffers = await firebaseService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
+    const vendorOffers = await hybridStorageService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
     const offerDetails = [];
 
     for (const selection of vendorOffers) {
-      const offer = await firebaseService.getDocument('offers', selection.offer_id);
+      const offer = await hybridStorageService.getDocument('offers', selection.offer_id);
       if (offer) {
         offerDetails.push({ 
           ...offer, 

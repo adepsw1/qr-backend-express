@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const firebaseService = require('../services/firebase.service');
+const hybridStorageService = require('../services/hybrid-storage.service');
 const { v4: uuidv4 } = require('uuid');
 
 // GET /api/product/vendor/:vendorId - Get all products for a vendor
 router.get('/vendor/:vendorId', async (req, res, next) => {
   try {
-    const products = await firebaseService.queryCollection('products', 'vendorId', '==', req.params.vendorId);
+    const products = await hybridStorageService.queryCollection('products', 'vendorId', '==', req.params.vendorId);
     const sortedProducts = products.sort((a, b) => (a.order || 0) - (b.order || 0));
     res.json({ success: true, data: sortedProducts });
   } catch (err) {
@@ -52,7 +52,7 @@ router.put('/:productId', async (req, res, next) => {
   try {
     const { name, price, icon, description, category, isActive, order } = req.body;
     
-    const existing = await firebaseService.getDocument('products', req.params.productId);
+    const existing = await hybridStorageService.getDocument('products', req.params.productId);
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
@@ -69,7 +69,7 @@ router.put('/:productId', async (req, res, next) => {
       updatedAt: new Date().toISOString(),
     };
 
-    await firebaseService.updateDocument('products', req.params.productId, updates);
+    await hybridStorageService.updateDocument('products', req.params.productId, updates);
     console.log(`[ProductRoutes] ✅ Product updated: ${req.params.productId}`);
     
     res.json({ success: true, message: 'Product updated successfully', data: updates });
@@ -81,12 +81,12 @@ router.put('/:productId', async (req, res, next) => {
 // DELETE /api/product/:productId - Delete a product
 router.delete('/:productId', async (req, res, next) => {
   try {
-    const existing = await firebaseService.getDocument('products', req.params.productId);
+    const existing = await hybridStorageService.getDocument('products', req.params.productId);
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    await firebaseService.deleteDocument('products', req.params.productId);
+    await hybridStorageService.deleteDocument('products', req.params.productId);
     console.log(`[ProductRoutes] ✅ Product deleted: ${req.params.productId}`);
     
     res.json({ success: true, message: 'Product deleted successfully' });
@@ -121,7 +121,7 @@ router.post('/bulk', async (req, res, next) => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      await firebaseService.setDocument('products', productId, product);
+      await hybridStorageService.setDocument('products', productId, product);
       createdProducts.push(product);
     }
 

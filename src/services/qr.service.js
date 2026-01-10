@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
-const firebaseService = require('./firebase.service');
+const hybridStorageService = require('./hybrid-storage.service');
 
 class QRService {
   /**
@@ -32,7 +32,7 @@ class QRService {
           claimed_at: null,
         };
 
-        await firebaseService.setDocument('qr_tokens', token, qrTokenData);
+        await hybridStorageService.setDocument('qr_tokens', token, qrTokenData);
         tokens.push({ token, status: 'unclaimed' });
 
         console.log(`[QRService]  Generated QR token: ${token}`);
@@ -49,7 +49,7 @@ class QRService {
    */
   async validateQRToken(token) {
     try {
-      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+      const qrToken = await hybridStorageService.getDocument('qr_tokens', token);
 
       if (!qrToken) {
         throw { status: 404, message: 'QR token not found' };
@@ -73,7 +73,7 @@ class QRService {
         let vendorDetails = null;
         if (qrToken.vendor_id) {
           try {
-            vendorDetails = await firebaseService.getDocument('vendors', qrToken.vendor_id);
+            vendorDetails = await hybridStorageService.getDocument('vendors', qrToken.vendor_id);
           } catch (err) {
             console.log(`[QRService] Vendor not found for claimed QR: ${qrToken.vendor_id}`);
           }
@@ -108,7 +108,7 @@ class QRService {
    */
   async claimQRToken(token, vendorId, vendorSlug) {
     try {
-      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+      const qrToken = await hybridStorageService.getDocument('qr_tokens', token);
 
       if (!qrToken) {
         throw { status: 404, message: 'QR token not found' };
@@ -119,7 +119,7 @@ class QRService {
       }
 
       // Mark token as claimed and store vendor slug
-      await firebaseService.updateDocument('qr_tokens', token, {
+      await hybridStorageService.updateDocument('qr_tokens', token, {
         status: 'claimed',
         vendor_id: vendorId,
         vendor_slug: vendorSlug,
@@ -145,7 +145,7 @@ class QRService {
    */
   async getAllQRTokens(page = 1, limit = 50, filterStatus = null) {
     try {
-      let tokens = await firebaseService.getCollection('qr_tokens');
+      let tokens = await hybridStorageService.getCollection('qr_tokens');
 
       if (filterStatus) {
         tokens = tokens.filter(t => t.status === filterStatus);
@@ -176,7 +176,7 @@ class QRService {
    */
   async verifyQRToken(token) {
     try {
-      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+      const qrToken = await hybridStorageService.getDocument('qr_tokens', token);
 
       if (!qrToken) {
         throw { status: 404, message: 'QR token not found' };
@@ -191,7 +191,7 @@ class QRService {
       }
 
       // Mark as admin verified (DO NOT regenerate image - same token works forever!)
-      await firebaseService.updateDocument('qr_tokens', token, {
+      await hybridStorageService.updateDocument('qr_tokens', token, {
         admin_verified: true,
         verified_at: new Date().toISOString(),
       });
@@ -210,7 +210,7 @@ class QRService {
     }
   }  async getQRToken(token) {
     try {
-      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+      const qrToken = await hybridStorageService.getDocument('qr_tokens', token);
 
       if (!qrToken) {
         throw { status: 404, message: 'QR token not found' };
@@ -228,7 +228,7 @@ class QRService {
    */
   async deleteQRToken(token) {
     try {
-      await firebaseService.deleteDocument('qr_tokens', token);
+      await hybridStorageService.deleteDocument('qr_tokens', token);
       console.log(`[QRService]  Deleted QR token: ${token}`);
       return { success: true };
     } catch (error) {
@@ -241,7 +241,7 @@ class QRService {
    */
   async regenerateQRForStorefront(token, vendorId, frontendUrl = process.env.FRONTEND_URL || 'https://mintcream-chinchilla-207752.hostingersite.com') {
     try {
-      const qrToken = await firebaseService.getDocument('qr_tokens', token);
+      const qrToken = await hybridStorageService.getDocument('qr_tokens', token);
 
       if (!qrToken) {
         throw { status: 404, message: 'QR token not found' };
@@ -256,7 +256,7 @@ class QRService {
       const qrImage = await QRCode.toDataURL(redirectUrl);
 
       // Update QR token with new image
-      await firebaseService.updateDocument('qr_tokens', token, {
+      await hybridStorageService.updateDocument('qr_tokens', token, {
         qr_image: qrImage,
         registration_url: redirectUrl,
         updated_at: new Date().toISOString(),

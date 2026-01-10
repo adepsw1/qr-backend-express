@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const firebaseService = require('./firebase.service');
+const hybridStorageService = require('./hybrid-storage.service');
 
 class CustomerService {
   async sendOTPToCustomer(phoneNumber) {
@@ -16,7 +16,7 @@ class CustomerService {
     }
 
     // Use phone number as document ID for simple lookup
-    let customer = await firebaseService.getDocument('customers', data.phoneNumber);
+    let customer = await hybridStorageService.getDocument('customers', data.phoneNumber);
 
     if (!customer) {
       // MINIMAL customer data
@@ -25,13 +25,13 @@ class CustomerService {
         name: data.name || 'Customer',
         vendor_id: data.vendorId,
       };
-      await firebaseService.setDocument('customers', data.phoneNumber, customer);
+      await hybridStorageService.setDocument('customers', data.phoneNumber, customer);
       console.log(`[CustomerService] ✅ New customer created: ${data.phoneNumber}`);
     } else {
       // Update name if provided
       if (data.name) customer.name = data.name;
       customer.vendor_id = data.vendorId;
-      await firebaseService.updateDocument('customers', data.phoneNumber, customer);
+      await hybridStorageService.updateDocument('customers', data.phoneNumber, customer);
     }
 
     return {
@@ -43,7 +43,7 @@ class CustomerService {
   }
 
   async getCustomer(customerId) {
-    const customer = await firebaseService.getDocument('customers', customerId);
+    const customer = await hybridStorageService.getDocument('customers', customerId);
     if (!customer) {
       throw { status: 404, message: `Customer ${customerId} not found` };
     }
@@ -51,7 +51,7 @@ class CustomerService {
   }
 
   async getCustomerByPhone(phoneNumber) {
-    const customer = await firebaseService.getDocument('customers', phoneNumber);
+    const customer = await hybridStorageService.getDocument('customers', phoneNumber);
     if (!customer) {
       throw { status: 404, message: `Customer with phone ${phoneNumber} not found` };
     }
@@ -59,7 +59,7 @@ class CustomerService {
   }
 
   async getVendorCustomers(vendorId, page = 1, limit = 50) {
-    const allCustomers = await firebaseService.queryCollection('customers', 'vendor_id', '==', vendorId);
+    const allCustomers = await hybridStorageService.queryCollection('customers', 'vendor_id', '==', vendorId);
     const start = (page - 1) * limit;
     const end = start + limit;
 
@@ -71,14 +71,14 @@ class CustomerService {
 
   async getCustomerVendors(phoneNumber) {
     // Get all vendors this customer has interacted with
-    const redemptions = await firebaseService.queryCollection('redemptions', 'phoneNumber', '==', phoneNumber);
+    const redemptions = await hybridStorageService.queryCollection('redemptions', 'phoneNumber', '==', phoneNumber);
     const vendorIds = [...new Set(redemptions.map(r => r.vendorId))];
     return vendorIds;
   }
 
   async optOutCustomer(phoneNumber, vendorId) {
     // Simply delete the customer record
-    await firebaseService.deleteDocument('customers', phoneNumber);
+    await hybridStorageService.deleteDocument('customers', phoneNumber);
     return { message: 'Customer opted out successfully' };
   }
 }

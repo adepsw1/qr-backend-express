@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const firebaseService = require('./firebase.service');
+const hybridStorageService = require('./hybrid-storage.service');
 
 class WebhookService {
   acknowledgeWebhook(challenge) {
@@ -35,24 +35,24 @@ class WebhookService {
   }
 
   async getRecentEvents(limit = 100) {
-    const events = await firebaseService.getCollection('webhook_events');
+    const events = await hybridStorageService.getCollection('webhook_events');
     return events.slice(0, limit);
   }
 
   async handleOptOut(phoneNumber, vendorId) {
-    const optInRecords = await firebaseService.queryCollection('customer_optins', 'phone_number', '==', phoneNumber);
+    const optInRecords = await hybridStorageService.queryCollection('customer_optins', 'phone_number', '==', phoneNumber);
 
     if (vendorId) {
       const record = optInRecords.find(r => r.vendor_id === vendorId);
       if (record) {
-        await firebaseService.updateDocument('customer_optins', record.id, {
+        await hybridStorageService.updateDocument('customer_optins', record.id, {
           opt_in: false,
           updated_at: new Date().toISOString(),
         });
       }
     } else {
       for (const record of optInRecords) {
-        await firebaseService.updateDocument('customer_optins', record.id, {
+        await hybridStorageService.updateDocument('customer_optins', record.id, {
           opt_in: false,
           updated_at: new Date().toISOString(),
         });

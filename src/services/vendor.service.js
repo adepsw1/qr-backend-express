@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
-const firebaseService = require('./firebase.service');
+const hybridStorageService = require('./hybrid-storage.service');
 const qrService = require('./qr.service');
 
 class VendorService {
@@ -26,7 +26,7 @@ class VendorService {
       }
     }
 
-    const existingByEmail = await firebaseService.queryCollection('vendors', 'email', '==', data.email);
+    const existingByEmail = await hybridStorageService.queryCollection('vendors', 'email', '==', data.email);
     if (existingByEmail.length > 0) {
       throw { status: 400, message: 'Vendor with this email already exists' };
     }
@@ -37,7 +37,7 @@ class VendorService {
     let qrCodeUrl = null;
     if (qrToken) {
       try {
-        const qrTokenData = await firebaseService.getDocument('qr_tokens', qrToken);
+        const qrTokenData = await hybridStorageService.getDocument('qr_tokens', qrToken);
         qrCodeUrl = qrTokenData.qr_image; // Use pre-generated QR image
         claimedQRData = qrTokenData;
       } catch (err) {
@@ -105,7 +105,7 @@ class VendorService {
     }
 
     // NOW SAVE VENDOR WITH UPDATED QR URL
-    await firebaseService.setDocument('vendors', vendorId, vendor);
+    await hybridStorageService.setDocument('vendors', vendorId, vendor);
 
     // Generate JWT access token for auto-login
     const accessToken = jwt.sign(
@@ -128,7 +128,7 @@ class VendorService {
   }
 
   async getVendor(vendorId) {
-    const vendor = await firebaseService.getDocument('vendors', vendorId);
+    const vendor = await hybridStorageService.getDocument('vendors', vendorId);
     if (!vendor) {
       throw { status: 404, message: `Vendor ${vendorId} not found` };
     }
@@ -136,18 +136,18 @@ class VendorService {
   }
 
   async updateVendor(vendorId, data) {
-    const vendor = await firebaseService.getDocument('vendors', vendorId);
+    const vendor = await hybridStorageService.getDocument('vendors', vendorId);
     if (!vendor) {
       throw { status: 404, message: `Vendor ${vendorId} not found` };
     }
 
     const updated = { ...data, updated_at: new Date().toISOString() };
-    await firebaseService.updateDocument('vendors', vendorId, updated);
+    await hybridStorageService.updateDocument('vendors', vendorId, updated);
     return { ...vendor, ...updated };
   }
 
   async getAllVendors(page = 1, limit = 20) {
-    const allVendors = await firebaseService.getCollection('vendors');
+    const allVendors = await hybridStorageService.getCollection('vendors');
     console.log('[VendorService] 📋 Fetching vendors - Total:', allVendors.length);
     const start = (page - 1) * limit;
     const end = start + limit;
@@ -159,11 +159,11 @@ class VendorService {
   }
 
   async deleteVendor(vendorId) {
-    const vendor = await firebaseService.getDocument('vendors', vendorId);
+    const vendor = await hybridStorageService.getDocument('vendors', vendorId);
     if (!vendor) {
       throw { status: 404, message: `Vendor ${vendorId} not found` };
     }
-    await firebaseService.deleteDocument('vendors', vendorId);
+    await hybridStorageService.deleteDocument('vendors', vendorId);
   }
 
   async generateQRCode(vendorId) {
@@ -184,7 +184,7 @@ class VendorService {
   }
 
   async getPendingOffers(vendorId, page = 1, limit = 10) {
-    const allOffers = await firebaseService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
+    const allOffers = await hybridStorageService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
     const pendingOffers = allOffers.filter(o => o.status === 'pending');
     const start = (page - 1) * limit;
     const end = start + limit;
@@ -198,13 +198,13 @@ class VendorService {
   }
 
   async getVendorStats(vendorId) {
-    const offers = await firebaseService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
+    const offers = await hybridStorageService.queryCollection('vendor_offer_actions', 'vendor_id', '==', vendorId);
     const accepted = offers.filter(o => o.status === 'accepted').length;
     const rejected = offers.filter(o => o.status === 'rejected').length;
     const pending = offers.filter(o => o.status === 'pending').length;
 
     // Get redemption stats
-    const redemptions = await firebaseService.queryCollection('redemptions', 'vendorId', '==', vendorId);
+    const redemptions = await hybridStorageService.queryCollection('redemptions', 'vendorId', '==', vendorId);
     const redeemedCount = redemptions.filter(r => r.status === 'redeemed').length;
 
     return {

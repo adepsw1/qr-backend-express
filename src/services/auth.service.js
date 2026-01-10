@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const firebaseService = require('./firebase.service');
+const hybridStorageService = require('./hybrid-storage.service');
 
 class AuthService {
   generateOTP() {
@@ -11,7 +11,7 @@ class AuthService {
     const otp = this.generateOTP();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    await firebaseService.setDocument('otp_verifications', phoneNumber, {
+    await hybridStorageService.setDocument('otp_verifications', phoneNumber, {
       code: otp,
       expiresAt,
       createdAt: new Date().toISOString(),
@@ -29,14 +29,14 @@ class AuthService {
   }
 
   async verifyOTP(phoneNumber, otp) {
-    const stored = await firebaseService.getDocument('otp_verifications', phoneNumber);
+    const stored = await hybridStorageService.getDocument('otp_verifications', phoneNumber);
 
     if (!stored) {
       throw { status: 400, message: 'OTP expired or not found' };
     }
 
     if (Date.now() > stored.expiresAt) {
-      await firebaseService.deleteDocument('otp_verifications', phoneNumber);
+      await hybridStorageService.deleteDocument('otp_verifications', phoneNumber);
       throw { status: 400, message: 'OTP expired' };
     }
 
@@ -44,7 +44,7 @@ class AuthService {
       throw { status: 401, message: 'Invalid OTP' };
     }
 
-    await firebaseService.deleteDocument('otp_verifications', phoneNumber);
+    await hybridStorageService.deleteDocument('otp_verifications', phoneNumber);
 
     const accessToken = jwt.sign(
       { phone: phoneNumber, type: 'access' },
@@ -63,7 +63,7 @@ class AuthService {
 
   async loginWithPassword(email, password, userType) {
     if (userType === 'vendor') {
-      const vendors = await firebaseService.queryCollection('vendors', 'email', '==', email);
+      const vendors = await hybridStorageService.queryCollection('vendors', 'email', '==', email);
 
       if (vendors.length === 0) {
         throw { status: 401, message: 'Invalid email or password' };
