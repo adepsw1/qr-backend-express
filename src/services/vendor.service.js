@@ -64,6 +64,8 @@ class VendorService {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(data.password, salt);
 
+    const slug = generateSlug(data.name);
+
     // Create vendor record with all fields
     const vendor = {
       id: vendorId,
@@ -77,7 +79,7 @@ class VendorService {
       qr_code_url: qrCodeUrl,
       qr_token: qrToken, // Store reference to QR token that was claimed
       qr_layout: claimedQRData?.layout || 'blue', // Store layout for later editing
-      slug: generateSlug(data.name),
+      slug: slug,
       created_at: new Date().toISOString(),
     };
 
