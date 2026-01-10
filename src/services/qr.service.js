@@ -16,8 +16,8 @@ class QRService {
         // Generate unique token like QR_ABC123XYZ
         const token = `QR_${uuidv4().substring(0, 8).toUpperCase()}${uuidv4().substring(0, 3).toUpperCase()}`;
         
-        // Generate QR code that directly redirects to vendor storefront
-        const qrRedirectUrl = `${frontendUrl}/qr/redirect/${token}`;
+        // Generate QR code that points to redirect page with token as query param
+        const qrRedirectUrl = `${frontendUrl}/qr/redirect?token=${token}`;
         const qrImage = await QRCode.toDataURL(qrRedirectUrl);
 
         // Store in QR_TOKENS collection
