@@ -26,7 +26,6 @@ if (!process.env.JWT_SECRET) {
 }
 
 const firebaseService = require('./services/firebase.service');
-const { sequelize } = require('./services/database.service');
 const migrationRoutes = require('./routes/migration.routes');
 const authRoutes = require('./routes/auth.routes');
 const vendorRoutes = require('./routes/vendor.routes');
